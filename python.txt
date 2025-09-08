@@ -1,0 +1,1 @@
+def min_max(x, y):\\n    min_val = min(x, y)\\n    max_val = max(x, y)\\n    print(f\\\"{min_val} {max_val}\\\")\\n\\nt = int(input())\\nfor _ in range(t):\\n    x, y = map(int, input().split())\\n    min_max(x, y)

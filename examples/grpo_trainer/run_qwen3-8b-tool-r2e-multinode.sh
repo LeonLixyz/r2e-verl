@@ -1,0 +1,83 @@
+#!/bin/bash
+# fixed_submit.sh - Submit without --working-dir to use installed package
+
+set -x
+MAX_PROMPT_LENGTH=8192
+MAX_RESPONSE_LENGTH=8192
+BUFFER_SIZE=1000
+MAX_NUM_ASSISTANT_TURNS=100
+MAX_TOTAL_TOKENS=$((MAX_PROMPT_LENGTH + MAX_RESPONSE_LENGTH + BUFFER_SIZE))
+NUM_NODES=2
+NUM_GPUS_PER_NODE=8
+BATCH_SIZE=$((NUM_GPUS_PER_NODE * NUM_NODES))
+
+# First ensure VERL is installed in the conda environment
+conda activate verl
+cd /workspace/relace-verl
+# pip install -e .
+
+# Submit WITHOUT --working-dir
+ray job submit \
+    --address http://10.10.74.174:8265 \
+    --runtime-env-json '{
+        "conda": "verl"
+    }' \
+    -- bash -c "cd /workspace/relace-verl && python3 -m verl.trainer.main_ppo \
+    algorithm.adv_estimator=grpo \
+    data.train_files=/workspace/relace-verl/r2e_gym_train.parquet \
+    data.val_files=/workspace/relace-verl/r2e_gym_test.parquet \
+    data.train_batch_size=32 \
+    data.max_prompt_length=$MAX_PROMPT_LENGTH \
+    data.max_response_length=$MAX_RESPONSE_LENGTH \
+    data.filter_overlong_prompts=True \
+    data.truncation='error' \
+    data.val_batch_size=64 \
+    data.return_raw_chat=True \
+    actor_rollout_ref.rollout.multi_turn.enable=true \
+    actor_rollout_ref.rollout.multi_turn.tool_config_path=./tool_config.yaml \
+    actor_rollout_ref.rollout.multi_turn.max_assistant_turns=$MAX_NUM_ASSISTANT_TURNS \
+    actor_rollout_ref.rollout.multi_turn.format=hermes \
+    +actor_rollout_ref.rollout.repetition_penalty=1.1 \
+    actor_rollout_ref.rollout.temperature=0.6 \
+    actor_rollout_ref.rollout.top_p=0.95 \
+    +actor_rollout_ref.rollout.val_kwargs.repetition_penalty=1.1 \
+    actor_rollout_ref.rollout.val_kwargs.temperature=0.6 \
+    actor_rollout_ref.rollout.val_kwargs.top_p=0.95 \
+    actor_rollout_ref.model.path=/workspace/relace-verl/models/qwen3-8b \
+    actor_rollout_ref.actor.optim.lr=1e-6 \
+    actor_rollout_ref.rollout.max_model_len=$MAX_TOTAL_TOKENS \
+    actor_rollout_ref.actor.use_dynamic_bsz=True \
+    actor_rollout_ref.actor.ppo_max_token_len_per_gpu=$MAX_TOTAL_TOKENS \
+    actor_rollout_ref.rollout.mode=async \
+    actor_rollout_ref.model.use_remove_padding=True \
+    actor_rollout_ref.actor.ppo_mini_batch_size=$BATCH_SIZE \
+    actor_rollout_ref.actor.ppo_micro_batch_size_per_gpu=1 \
+    actor_rollout_ref.actor.use_kl_loss=False \
+    algorithm.norm_adv_by_std_in_grpo=False \
+    actor_rollout_ref.actor.entropy_coeff=0 \
+    actor_rollout_ref.rollout.max_num_batched_tokens=$MAX_TOTAL_TOKENS \
+    actor_rollout_ref.model.enable_gradient_checkpointing=True \
+    actor_rollout_ref.actor.fsdp_config.param_offload=True \
+    actor_rollout_ref.actor.fsdp_config.optimizer_offload=True \
+    actor_rollout_ref.rollout.log_prob_micro_batch_size_per_gpu=32 \
+    actor_rollout_ref.rollout.tensor_model_parallel_size=2 \
+    actor_rollout_ref.rollout.name=vllm \
+    actor_rollout_ref.rollout.gpu_memory_utilization=0.8 \
+    actor_rollout_ref.rollout.n=8 \
+    actor_rollout_ref.actor.loss_agg_mode='seq-mean-token-sum-norm' \
+    actor_rollout_ref.ref.log_prob_micro_batch_size_per_gpu=32 \
+    actor_rollout_ref.ref.fsdp_config.param_offload=True \
+    actor_rollout_ref.actor.entropy_checkpointing=True \
+    actor_rollout_ref.ref.entropy_from_logits_with_chunking=True \
+    algorithm.use_kl_in_reward=False \
+    trainer.critic_warmup=0 \
+    trainer.logger=['console','wandb'] \
+    trainer.project_name='verl_grpo_r2e_gym_integration' \
+    trainer.experiment_name='qwen3_8b_r2e_gym_rewards' \
+    trainer.n_gpus_per_node=$NUM_GPUS_PER_NODE \
+    trainer.nnodes=$NUM_NODES \
+    trainer.save_freq=5 \
+    trainer.test_freq=5 \
+    trainer.resume_mode=auto \
+    trainer.total_epochs=15 \
+    reward_model.reward_manager=r2e_gym" > output_r2e_gym.txt 2>&1
