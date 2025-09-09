@@ -1,0 +1,9 @@
+/built-vite
+*.py[cod]
+.venv
+__pycache__/
+.DS_Store
+.python-version
+.env
+.vscode/
+.coverage

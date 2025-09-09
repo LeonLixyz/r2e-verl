@@ -1,0 +1,148 @@
+definitions:
+  prompts: &prompts
+    system: | # Copied from https://github.com/agentica-project/rllm/blob/2ce8e5494c16c5b8286eccb09fc7008a71a1a4b7/rllm/agents/system_prompts.py#L77
+      You are a programming agent who is provided a github issue and repository bash environment and is tasked to solve certain tasks (e.g., file localization, testcase generation, code repair and editing etc) to resolve the issue.
+    user: | # Copied from https://github.com/agentica-project/rllm/blob/2ce8e5494c16c5b8286eccb09fc7008a71a1a4b7/rllm/agents/system_prompts.py#L305
+      I have uploaded a python code repository in the /testbed directory.
+
+      Now consider the following Github issue:
+
+      <github_issue>
+      ${{ inputs.problem_statement }}
+      </github_issue>
+
+      Can you help me implement the necessary changes to the repository to fix the <github_issue>?
+      I have already taken care of all changes to any of the test files described in the <github_issue>. This means you DON'T have to modify the testing logic or any of the tests in any way! Your task is to make changes to non-test files in the /testbed directory to ensure the <github_issue> is resolved.
+
+      Follow these steps to resolve the issue:
+      1. First, explore the codebase to locate and understand the code relevant to the <github_issue>.
+        - Use efficient search commands to identify key files and functions.
+        - You should err on the side of caution and look at various relevant files and build your understanding of
+          - how the code works
+          - what are the expected behaviors and edge cases
+          - what are the potential root causes for the given issue
+
+      2. Assess whether you can reproduce the issue:
+          - Create a script at '/testbed/reproduce_issue.py' that demonstrates the error.
+          - Execute this script to confirm the error behavior.
+          - You should reproduce the issue before fixing it.
+          - Your reproduction script should also assert the expected behavior for the fixed code.
+
+      3. Analyze the root cause:
+          - Identify the underlying problem based on your code exploration and reproduction results.
+          - Critically analyze different potential approaches to fix the issue.
+          - You NEED to explicitly reason about multiple approaches to fix the issue. Next, find the most elegant and effective solution among them considering the tradeoffs (correctness, generality, side effects, etc.).
+          - You would need to reason about execution paths, edge cases, and other potential issues. You should look at the unit tests to understand the expected behavior of the relevant code.
+
+      4. Implement your solution:
+          - Make targeted changes to the necessary files following idiomatic code patterns once you determine the root cause.
+          - You should be thorough and methodical.
+
+      5. Verify your solution:
+          - Rerun your reproduction script to confirm the error is fixed.
+          - If verification fails, iterate on your solution until successful. If you identify the reproduction script is buggy, adjust it as needed.
+
+      6. Run unit tests:
+          - Find and run the relevant unit tests relevant to the performed fix.
+          - You should run the unit tests to ensure your solution is correct and does not cause any regressions.
+          - In cases where the unit tests are do not pass, you should consider whether the unit tests does not reflect the *new* expected behavior of the code. If so, you can test it by writing additional edge test cases.
+          - Use the existing test runner to run the unit tests you identify as relevant to the changes you made. For example:
+              - `python -m pytest -xvs sympy/physics/units/tests/test_dimensions_transcendental.py`
+              - `python -m pytest tests/test_domain_py.py::test_pymethod_options`
+              - `./tests/runtests.py constraints.tests.CheckConstraintTests -v 2`
+          - RUN ALL relevant unit tests to ensure your solution is correct and does not cause any regressions.
+
+      7. Test edge cases:
+          - Identify potential edge cases that might challenge your solution.
+          - Create additional test cases in a separate file '/testbed/edge_case_tests.py'.
+          - Execute these tests to verify your solution's robustness.
+          - You should run multiple rounds of edge cases. When creating edge cases:
+            - Consider complex scenarios beyond the original issue description
+            - Test for regressions to ensure existing functionality remains intact
+
+      8. Refine if necessary:
+          - If edge case testing reveals issues, refine your solution accordingly.
+          - Ensure your final implementation handles all identified scenarios correctly.
+          - Document any assumptions or limitations of your solution.
+
+      9. Submit your solution:
+          - Once you have verified your solution, submit your solution using the `submit` tool.
+
+      A successful resolution means:
+      - The specific error/issue described no longer occurs
+      - Your changes maintain compatibility with existing functionality
+      - Edge cases are properly handled
+
+
+      Additional recommendations:
+      - You should be thorough, methodical, and prioritize quality over speed. Be comprehensive.
+      - You should think carefully before making the tool call about what should be done. However, each step should only use one tool call. YOU SHOULD NOT USE TOOLS INSIDE YOUR THOUGHT PROCESS. YOU SHOULD PRIMARILY USE THINKING FOR IDENTIFYING THE ROOT CAUSE OF THE ISSUE, MAKING THE CHANGES, AND CREATING TEST CASES (REPRODUCTION OR EDGE CASES).
+      - Each action you take is somewhat expensive. Wherever possible, combine multiple actions into a single action (e.g., combine multiple bash commands, use sed/grep for bulk operations).
+          - Your grep commands should identify both relevant files and line numbers so you can use the file_editor tool.
+          - Use grep with `-A -B -C` flags to quickly identify the relevant code blocks during your exploration.
+      - When exploring the codebase, use targeted search patterns to minimize unnecessary operations.
+      - When creating edge cases, you should look at the relevant existing tests to understand existing "regression" test cases. Ensure the fix doesn't break existing functionality.
+  tools:
+    apply: &tools-apply
+      - write_file
+      - edit_file
+      - view_file
+      - view_directory
+      - delete_files
+      - grep_search
+      - bash
+    replace: &tools-replace
+      - write_file
+      - search_and_replace
+      - view_file
+      - view_directory
+      - delete_files
+      - grep_search
+      - bash
+    replace-and-apply: &tools-replace-and-apply
+      - write_file
+      - search_and_replace
+      - edit_file
+      - view_file
+      - view_directory
+      - delete_files
+      - grep_search
+      - bash
+
+sandbox_agents:
+  qwen-apply:
+    model_name: "qwen/qwen3-coder"
+    tools: *tools-apply
+    <<: *prompts
+
+  qwen-replace:
+    model_name: "qwen/qwen3-coder"
+    tools: *tools-replace
+    <<: *prompts
+
+  qwen-replace-and-apply:
+    model_name: "qwen/qwen3-coder"
+    tools: *tools-replace-and-apply
+    <<: *prompts
+
+  claude-apply:
+    model_name: "anthropic/claude-sonnet-4"
+    tools: *tools-apply
+    <<: *prompts
+
+  claude-replace:
+    model_name: "anthropic/claude-sonnet-4"
+    tools: *tools-replace
+    <<: *prompts
+
+  claude-replace-and-apply:
+    model_name: "anthropic/claude-sonnet-4"
+    tools: *tools-replace-and-apply
+    <<: *prompts
+
+  gpt-5-replace:
+    model_name: "openai/gpt-5"
+    tools: *tools-replace
+    <<: *prompts
+
+matrix: {} # Placeholder for compatibility with relace-ui.yaml

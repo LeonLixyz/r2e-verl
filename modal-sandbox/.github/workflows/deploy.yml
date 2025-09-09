@@ -1,0 +1,36 @@
+---
+name: deploy
+
+on:
+  push:
+    branches: [ main ]
+    paths-ignore:
+      - '.gitattributes'
+      - '.gitignore'
+      - 'README.md'
+      - 'tests/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: modal
+    env:
+      MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+      MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-python@v4
+      with:
+        python-version: "3.13"
+    - name: Install uv
+      uses: astral-sh/setup-uv@v5
+      with:
+        enable-cache: true
+    - name: Install
+      run: uv sync --all-groups
+    - name: Test
+      run: uv run pytest
+    - name: Deploy to Modal
+      run: uv run modal deploy -m relace_agent.modal.agent_runner --tag github

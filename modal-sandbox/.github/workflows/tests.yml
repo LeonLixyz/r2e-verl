@@ -1,0 +1,29 @@
+---
+name: tests
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-python@v4
+      with:
+        python-version: "3.13"
+    - name: Install uv
+      uses: astral-sh/setup-uv@v5
+      with:
+        enable-cache: true
+    - name: Install relace-agent
+      run: uv sync
+    - name: Test - ruff
+      run: uv run ruff check .
+    - name: Test - ruff format
+      run: uv run ruff format --check .
+    - name: Test - mypy
+      run: uv run mypy .
+    - name: Test - pytest
+      run: uv run pytest

@@ -1,0 +1,110 @@
+[project]
+name = "relace-agent"
+version = "0.1.0"
+readme = "README.md"
+requires-python = "~=3.13.0"
+dependencies = [
+    "aiofile>=3.9.0",
+    "async-lru>=2.0.5",
+    "boto3>=1.38.7",
+    "clickhouse-connect>=0.8.18",
+    "datasets>=4.0.0",
+    "fastapi[standard]>=0.115.12",
+    "httpx>=0.28.0",
+    "langfuse>=3.0.0",
+    "modal>=1.1.0",
+    "openai>=1.97.1",
+    "opentelemetry-distro>=0.57b0",
+    "opentelemetry-exporter-otlp>=1.36.0",
+    "opentelemetry-instrumentation-asyncio>=0.57b0",
+    "opentelemetry-instrumentation-fastapi>=0.57b0",
+    "opentelemetry-instrumentation-httpx>=0.57b0",
+    "playwright>=1.53.0",
+    "pydantic>=2.11.3",
+    "pydantic-yaml>=1.5.1",
+    "pygit2>=1.18.0",
+    "pygithub>=2.6.1",
+    "sse-starlette>=2.3.6",
+    "supabase>=2.15.1",
+    "tqdm>=4.66.0",
+    "turbopuffer>=0.5.16",
+]
+
+[project.optional-dependencies]
+agent = [
+    "numpy>=2.3.1",
+    "pandas>=2.3.1",
+    "scipy>=1.16.0",
+]
+
+[dependency-groups]
+dev = [
+    "mypy>=1.15.0",
+    "pytest>=8.3.5",
+    "pytest-asyncio>=1.1.0",
+    "pytest-cov>=6.2.1",
+    "rich>=14.0.0",
+    "ruff>=0.11.8",
+    "typer>=0.16.0",
+    "types-boto3>=1.38.8",
+    "types-pygit2>=1.15.0.20250319",
+    "types-requests>=2.32.0.20250328",
+    "types-tqdm>=4.67.0.20250516",
+]
+
+[tool.ruff]
+target-version = "py313"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",
+    "F",
+    "W",
+    "I001",
+    "UP",
+    "FAST001",
+    "FAST002",
+    "B",
+    "C4",
+]
+ignore = [  # TODO: Fix and remove these ignores
+    "E501", # Line too long
+    "F841", # Unused variable
+    "UP040", # TypeAlias -> type keyword (unsafe fix)
+]
+
+[tool.ruff.lint.isort]
+known-third-party = ["modal"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+
+[[tool.mypy.overrides]]
+module = [
+    "langfuse",
+    "langfuse.*",
+    "datasets",
+]
+follow_untyped_imports = true
+implicit_reexport = true
+
+[tool.basedpyright]
+pythonVersion = "3.13"
+allowedUntypedLibraries = [
+    "boto3",
+    "langfuse._client.observe",
+    "langfuse",
+    "modal",
+    "postgrest",
+]
+reportUnusedCallResult = false
+reportImplicitStringConcatenation = false
+reportImplicitOverride = false
+reportAny = false
+reportExplicitAny = false
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

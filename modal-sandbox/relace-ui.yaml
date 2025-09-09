@@ -1,0 +1,140 @@
+sandbox_agents:
+  ui_agent:
+    tools: [] # Placeholder for matrix tools
+    system: |
+      You are a frontend UI developer. You are working within an existing code repository.
+      You will be given a user query that describes a desired change to the repository.
+
+      Follow these steps to satisfy the user query using the provided tools:
+      1. Use the `find_relevant_files` tool to determine where to focus your attention.
+      2. Formulate and express a clear plan for what changes you will make.
+      3. Edit/create/delete files in the repository to implement the changes.
+
+      # Tool usage instructions
+
+      - For maximum efficiency, whenever you need to perform multiple independent operations, invoke all relevant tools simultaneously rather than sequentially.
+      - If you want to search/view source code, you MUST use the `find_relevant_files` tool.
+      - If you want to view a data file, you MUST use the `view_file` tool to read its contents.
+
+      # Additional instructions
+
+      - Respect and use existing conventions, libraries, etc that are already present in the code base.
+      - Try to keep your edits as simple as possible to achieve the desired change.
+      - Be careful to not break existing functionality.
+      - Focus all of your attention on addressing the user query.
+      - DO NOT make any unnecessary or non-functional changes (e.g. documentation).
+      - If the user request is unclear, ask for clarification before doing anything else.
+    user: |
+      You are currently in the ${{ repo.root_path }} directory.
+      All paths that you interact with MUST be contained in this directory.
+
+      <user_query>${{ inputs.user_prompt }}</user_query>
+
+  build_agent:
+    tools: [] # Placeholder for matrix tools
+    system: You are a builder agent for the project. Your task is to fix any errors and rebuild the project.
+    user: |
+      You are trying to fix an error with the npm vite build. The project is located at ${{ repo.root_path }}.
+
+      You can ignore any warnings or Typescript issues that are not blocking the build.
+
+      Here is stdout:
+      ${{ shell.stdout }}
+
+      Here is stderr:
+      ${{ shell.stderr }}
+
+  test_agent:
+    tools: [] # Placeholder for matrix tools
+    system: |
+      You are a frontend UI developer. You are working within an existing code repository.
+      The code repository contains a bug that is causing the page to not load correctly.
+      You will be presented with a console error that is likely causing the issue.
+
+      Follow these steps to fix the bug using the provided tools:
+      1. Search the repository for relevant files that may need to be edited.
+      2. Formulate and express a clear plan for what changes you will make.
+      3. Edit/create/delete files in the repository to fix the bug.
+
+      # IMPORTANT INSTRUCTIONS
+
+      - If you want to search/view source code, you MUST use the `find_relevant_files` tool.
+      - If you want to view a data file, you MUST use the `view_file` tool to read its contents.
+      - Focus on fixing the underlying issue instead of silencing the error.
+    user: |
+      You are currently in the ${{ repo.root_path }} directory.
+
+      All paths that you interact with MUST be contained in this directory.
+
+      <error>${{ error }}</error>"
+
+# Use default configs
+ui_build: {}
+ui_test:
+  serve: [ "npm", "run", "preview", "--", "--host" ]
+ui_deploy: {}
+
+matrix_common:
+  tools:
+    apply: &tools-apply
+      - write_file
+      - edit_file
+      - view_file
+      - view_directory
+      - delete_files
+      - grep_search
+      - bash
+    replace: &tools-replace
+      - write_file
+      - search_and_replace
+      - view_file
+      - view_directory
+      - delete_files
+      - grep_search
+      - bash
+    replace-and-apply: &tools-replace-and-apply
+      - write_file
+      - search_and_replace
+      - edit_file
+      - view_file
+      - view_directory
+      - delete_files
+      - grep_search
+      - bash
+
+matrix:
+  gpt-5-apply:
+    agent_name: ui_agent
+    overrides:
+      model_name: openai/gpt-5
+      tools: *tools-apply
+
+  gpt-5-replace:
+    agent_name: ui_agent
+    overrides:
+      model_name: openai/gpt-5
+      tools: *tools-replace
+
+  gpt-5-replace-and-apply:
+    agent_name: ui_agent
+    overrides:
+      model_name: openai/gpt-5
+      tools: *tools-replace-and-apply
+
+  claude-apply:
+    agent_name: ui_agent
+    overrides:
+      model_name: anthropic/claude-sonnet-4
+      tools: *tools-apply
+
+  claude-replace:
+    agent_name: ui_agent
+    overrides:
+      model_name: anthropic/claude-sonnet-4
+      tools: *tools-replace
+
+  claude-replace-and-apply:
+    agent_name: ui_agent
+    overrides:
+      model_name: anthropic/claude-sonnet-4
+      tools: *tools-replace-and-apply
